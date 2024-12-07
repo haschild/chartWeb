@@ -5,7 +5,8 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch, toRaw } from 'vue'
 import * as monaco from 'monaco-editor'
-import { Parser } from 'node-sql-parser'
+import { debounce } from 'lodash-es'
+import { SQLValidator } from '../utils/sqlValidator';
 
 const props = defineProps({
   modelValue: {
@@ -17,19 +18,34 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change'])
 const editorContainer = ref(null)
 const editor = ref(null)
-const parser = new Parser({
-  database: 'mysql'
-})
 
-// 防抖函数
-const debounce = (fn, delay) => {
-  let timer = null
-  return function (...args) {
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => {
-      fn.apply(this, args)
-    }, delay)
+// 在 createEditor 函数之前定义
+const handleContentChange = debounce((value) => {
+  emit('update:modelValue', value)
+  emit('change', value)
+}, 300)
+
+const sqlValidator = new SQLValidator();
+
+// 修改验证函数
+const validateSQL = (text) => {
+  if (!text.trim()) return [];
+  
+  const validator = new SQLValidator();
+  const result = validator.validate(text);
+  
+  if (!result.isValid) {
+    return [{
+      severity: monaco.MarkerSeverity.Error,
+      message: result.error.message,
+      startLineNumber: result.error.line || 1,
+      startColumn: result.error.column || 1,
+      endLineNumber: result.error.line || 1,
+      endColumn: (result.error.column || 1) + 1
+    }];
   }
+  
+  return [];
 }
 
 // 创建编辑器实例
@@ -100,80 +116,116 @@ const createEditor = () => {
   // 配置 SQL 语言特性
   monaco.languages.registerCompletionItemProvider('sql', {
     provideCompletionItems: () => {
-      const suggestions = [
-        // SQL 关键字
-        ...['SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE',
-          'CREATE', 'DROP', 'ALTER', 'TABLE', 'INDEX', 'VIEW',
-          'AND', 'OR', 'NOT', 'IN', 'LIKE', 'BETWEEN',
-          'ORDER BY', 'GROUP BY', 'HAVING', 'JOIN', 'LEFT', 'RIGHT', 'INNER'
-        ].map(keyword => ({
-          label: keyword,
-          kind: monaco.languages.CompletionItemKind.Keyword,
-          insertText: keyword,
-          detail: 'SQL Keyword',
-          documentation: getSQLKeywordDoc(keyword) // 添加关键字文档说明
-        })),
-        
-        // SQL 函数
-        ...['COUNT', 'SUM', 'AVG', 'MAX', 'MIN', 'CONCAT', 'SUBSTRING',
-          'UPPER', 'LOWER', 'DATE', 'NOW', 'CAST', 'COALESCE'
-        ].map(func => ({
-          label: func,
-          kind: monaco.languages.CompletionItemKind.Function,
-          insertText: func + '($0)',
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          detail: 'SQL Function',
-          documentation: getSQLFunctionDoc(func) // 添加函数文档说明
-        })),
-
-        // 常用SQL片段
-        {
-          label: 'sel-basic',
-          kind: monaco.languages.CompletionItemKind.Snippet,
-          insertText: 'SELECT ${1:columns}\nFROM ${2:table}\nWHERE ${3:condition}',
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          detail: 'Basic SELECT statement',
-          documentation: 'Basic SELECT query template'
-        },
-        {
-          label: 'join-basic',
-          kind: monaco.languages.CompletionItemKind.Snippet,
-          insertText: [
-            'SELECT ${1:columns}',
-            'FROM ${2:table1} t1',
-            'JOIN ${3:table2} t2 ON t1.${4:id} = t2.${5:id}',
-            'WHERE ${6:condition}'
-          ].join('\n'),
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          detail: 'Basic JOIN statement',
-          documentation: 'Basic JOIN query template'
-        }
-      ]
-      return { suggestions }
+      return {
+        suggestions: [
+          {
+            label: 'SELECT',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'SELECT ${1:columns} FROM ${2:table}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '查询数据'
+          },
+          // 创建相关
+          {
+            label: 'CREATE TABLE',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'CREATE TABLE ${1:table_name} (\n\t${2:column_name} ${3:data_type}${4: constraints}\n)',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '创建新表'
+          },
+          {
+            label: 'CREATE INDEX',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'CREATE INDEX ${1:index_name} ON ${2:table_name} (${3:column_name})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '创建索引'
+          },
+          // 修改相关
+          {
+            label: 'UPDATE',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'UPDATE ${1:table_name} SET ${2:column_name} = ${3:value} WHERE ${4:condition}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '更新数据'
+          },
+          {
+            label: 'ALTER TABLE',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'ALTER TABLE ${1:table_name} ${2:ADD|MODIFY|DROP} ${3:column_name} ${4:data_type}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '修改表结构'
+          },
+          // 删除相关
+          {
+            label: 'DELETE',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'DELETE FROM ${1:table_name} WHERE ${2:condition}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '删除数据'
+          },
+          {
+            label: 'DROP TABLE',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'DROP TABLE ${1:table_name}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '删除表'
+          },
+          {
+            label: 'DROP INDEX',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'DROP INDEX ${1:index_name} ON ${2:table_name}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '删除索引'
+          },
+          // 插入相关
+          {
+            label: 'INSERT',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'INSERT INTO ${1:table_name} (${2:columns}) VALUES (${3:values})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '插入数据'
+          },
+          // 约束相关
+          {
+            label: 'PRIMARY KEY',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'PRIMARY KEY (${1:column_name})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '主键约束'
+          },
+          {
+            label: 'FOREIGN KEY',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'FOREIGN KEY (${1:column_name}) REFERENCES ${2:parent_table}(${3:parent_column})',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '外键约束'
+          },
+          // 条件相关
+          {
+            label: 'WHERE',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'WHERE ${1:condition}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '条件筛选'
+          },
+          {
+            label: 'GROUP BY',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'GROUP BY ${1:column_name}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '分组'
+          },
+          {
+            label: 'ORDER BY',
+            kind: monaco.languages.CompletionItemKind.Keyword,
+            insertText: 'ORDER BY ${1:column_name} ${2:ASC|DESC}',
+            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+            documentation: '排序'
+          }
+        ]
+      };
     }
   })
-
-  // 添加关键字文档说明函数
-  function getSQLKeywordDoc(keyword) {
-    const docs = {
-      'SELECT': 'Used to select data from a database\n\nExample:\nSELECT column1, column2 FROM table_name',
-      'WHERE': 'Used to filter records\n\nExample:\nWHERE age >= 18',
-      'JOIN': 'Used to combine rows from two or more tables\n\nExample:\nJOIN table2 ON table1.id = table2.id',
-      // ... 添加更多关键字文档
-    }
-    return docs[keyword] || keyword
-  }
-
-  // 添加函数文档说明函数
-  function getSQLFunctionDoc(func) {
-    const docs = {
-      'COUNT': 'Returns the number of rows\n\nExample:\nCOUNT(*) or COUNT(column)',
-      'SUM': 'Returns the sum of a numeric column\n\nExample:\nSUM(column)',
-      'AVG': 'Returns the average value of a numeric column\n\nExample:\nAVG(column)',
-      // ... 添加更多函数文档
-    }
-    return docs[func] || func
-  }
 
   editor.value = monaco.editor.create(editorContainer.value, {
     value: props.modelValue,
@@ -197,7 +249,9 @@ const createEditor = () => {
     },
     formatOnType: true,
     formatOnPaste: true,
-    semanticHighlighting: true,
+    semanticHighlighting: {
+      enabled: true
+    },
     colorDecorators: true,
     glyphMargin: true,
     bracketPairColorization: { enabled: true },
@@ -217,7 +271,10 @@ const createEditor = () => {
     tabSize: 2,
     autoClosingBrackets: 'always',
     autoClosingQuotes: 'always',
-    autoSurround: 'quotes'
+    autoSurround: 'quotes',
+    'sql.format.enable': true,
+    'sql.format.linesBetweenQueries': 2,
+    'sql.validate.enable': true,
   })
 
   // 注册 hover provider
@@ -252,157 +309,75 @@ const createEditor = () => {
     }
   })
 
-  // 使用防抖处理内变化
-  const handleContentChange = debounce((value) => {
-    emit('update:modelValue', value)
-    emit('change', value)
-  }, 300)
-
-  // 创建一个独立的验证函数
-  const validateSQL = (text) => {
-    const errors = []
+  // 添加格式化命令
+  toRaw(editor.value).addCommand(monaco.KeyMod.Alt | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, () => {
+    const validator = new SQLValidator();
+    const text = toRaw(editor.value).getValue();
+    const { formatted, error } = validator.formatSQL(text);
     
-    if (!text.trim()) {
-      return errors
+    if (!error) {
+      toRaw(editor.value).setValue(formatted);
     }
+  });
 
-    try {
-      const ast = parser.parse(text)
-      console.log('SQL AST:', JSON.stringify(ast, null, 2))
-      
-      // 增强语义检查
-      if (Array.isArray(ast)) {
-        ast.forEach((statement, index) => {
-          // 检查 SELECT *
-          if (statement.type === 'select') {
-            const columns = statement.columns
-            if (columns.length === 1 && columns[0].expr.type === 'star') {
-              errors.push({
-                startLineNumber: statement.location?.start?.line || 1,
-                endLineNumber: statement.location?.end?.line || 1,
-                startColumn: statement.location?.start?.column || 1,
-                endColumn: statement.location?.end?.column || 2,
-                message: 'Warning: Using SELECT * is not recommended. Consider specifying columns explicitly.',
-                severity: monaco.MarkerSeverity.Warning
-              })
-            }
-
-            // 检查 FROM 子句
-            if (statement.from) {
-              statement.from.forEach(table => {
-                // 暂时注释掉表名检查
-                /*
-                if (table.table && table.table.includes('.')) {
-                  errors.push({
-                    startLineNumber: statement.location?.start?.line || 1,
-                    endLineNumber: statement.location?.end?.line || 1,
-                    startColumn: statement.location?.start?.column || 1,
-                    endColumn: statement.location?.end?.column || text.length,
-                    message: 'Error: Invalid table name in FROM clause',
-                    severity: monaco.MarkerSeverity.Error
-                  })
-                }
-                */
-              })
-            }
-          }
-
-          // 检查缺少 WHERE 子句
-          if (['update', 'delete'].includes(statement.type) && !statement.where) {
-            errors.push({
-              startLineNumber: statement.location?.start?.line || 1,
-              endLineNumber: statement.location?.end?.line || 1,
-              startColumn: statement.location?.start?.column || 1,
-              endColumn: statement.location?.end?.column || text.length + 1,
-              message: `Warning: ${statement.type.toUpperCase()} statement without WHERE clause could affect all rows`,
-              severity: monaco.MarkerSeverity.Warning
-            })
-          }
-
-          // 检查 JOIN 条件
-          if (statement.type === 'select' && statement.from) {
-            statement.from.forEach(table => {
-              if (table.join && !table.on) {
-                errors.push({
-                  startLineNumber: table.location?.start?.line || 1,
-                  endLineNumber: table.location?.end?.line || 1,
-                  startColumn: table.location?.start?.column || 1,
-                  endColumn: table.location?.end?.column || text.length + 1,
-                  message: 'Error: JOIN must have ON condition',
-                  severity: monaco.MarkerSeverity.Error
-                })
-              }
-            })
-          }
-        })
-      }
-    } catch (e) {
-      console.error('Parse error:', e)
-      const errorMessage = e.message
-      const posMatch = errorMessage.match(/line\s+(\d+):\s*(\d+)/)
-      const line = posMatch ? parseInt(posMatch[1]) : 1
-      const column = posMatch ? parseInt(posMatch[2]) : 1
-
-      errors.push({
-        startLineNumber: line,
-        endLineNumber: line,
-        startColumn: column,
-        endColumn: column + 1,
-        message: `SQL Syntax Error: ${errorMessage}`,
-        severity: monaco.MarkerSeverity.Error
-      })
-    }
-
-    return errors
-  }
-
-  // 创建模型并设置验证器
-  const model = toRaw(editor.value).getModel()
+  // 在 createEditor 函数中修改验证器的调用方式
+  const model = toRaw(editor.value).getModel();
   if (model) {
-    // 使用防抖进行验证
+    // 使用防抖处理验证
     const debouncedValidate = debounce(() => {
-      const text = model.getValue()
-      const errors = validateSQL(text)
+      const text = model.getValue();
+      const errors = validateSQL(text);
       
       // 设置错误标记
-      monaco.editor.setModelMarkers(model, 'sql', errors)
-
-      // 添加错误装饰器
-      const errorDecorations = errors.map(error => ({
-        range: new monaco.Range(
-          error.startLineNumber,
-          error.startColumn,
-          error.endLineNumber,
-          error.endColumn
-        ),
-        options: {
-          isWholeLine: false,
-          className: error.severity === monaco.MarkerSeverity.Error ? 'sql-error-decoration' : 'sql-warning-decoration',
-          glyphMarginClassName: error.severity === monaco.MarkerSeverity.Error ? 'sql-error-glyph' : 'sql-warning-glyph',
-          hoverMessage: { value: error.message },
-          minimap: {
-            color: error.severity === monaco.MarkerSeverity.Error ? '#ff0000' : '#ffa500',
-            position: 1
-          },
-          glyphMarginHoverMessage: { value: error.message },
-          overviewRuler: {
-            color: error.severity === monaco.MarkerSeverity.Error ? '#ff0000' : '#ffa500',
-            position: monaco.editor.OverviewRulerLane.Right
-          }
-        }
-      }))
-
-      // 应用装饰器
-      toRaw(editor.value).deltaDecorations([], errorDecorations)
-    }, 300)
+      monaco.editor.setModelMarkers(model, 'sql', errors);
+    }, 300);
 
     // 监听内容变化
     model.onDidChangeContent(() => {
-      debouncedValidate()
-    })
+      debouncedValidate();
+    });
 
     // 初始验证
-    debouncedValidate()
+    debouncedValidate();
+  }
+
+  // 添加格式化操作到右键菜单
+  toRaw(editor.value).addAction({
+    id: 'format-sql',
+    label: '格式化 SQL',
+    contextMenuGroupId: 'modification',
+    run: () => {
+      const validator = new SQLValidator();
+      const text = toRaw(editor.value).getValue();
+      const { formatted, error } = validator.formatSQL(text);
+      
+      if (!error) {
+        toRaw(editor.value).setValue(formatted);
+      }
+    }
+  });
+
+  // 添加辅助函数来获取装饰器类名
+  const getDecorationClass = (severity) => {
+    switch (severity) {
+      case monaco.MarkerSeverity.Error:
+        return 'sql-error-decoration'
+      case monaco.MarkerSeverity.Warning:
+        return 'sql-warning-decoration'
+      default:
+        return 'sql-info-decoration'
+    }
+  }
+
+  const getGlyphClass = (severity) => {
+    switch (severity) {
+      case monaco.MarkerSeverity.Error:
+        return 'sql-error-glyph'
+      case monaco.MarkerSeverity.Warning:
+        return 'sql-warning-glyph'
+      default:
+        return 'sql-info-glyph'
+    }
   }
 
   // 内容变化处理
@@ -425,11 +400,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (editor.value) {
-    editor.value.dispose()
+    toRaw(editor.value).dispose()
   }
 })
 
-// 暴露方法给父组件
+// 暴露方法给组件
 defineExpose({
   setValue: (value) => {
     if (editor.value) {
@@ -459,7 +434,7 @@ defineExpose({
   border-radius: 4px;
 }
 
-/* 添错误和警告装饰器样式 */
+/* 添加错误和警告装饰器样式 */
 :deep(.sql-error-decoration) {
   border-bottom: 2px solid #ff0000;
 }
