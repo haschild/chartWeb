@@ -3,7 +3,6 @@
     <div class="chat-main">
       <WelcomeSection
         v-if="!chatHistory.length"
-        @feature-click="handleFeatureClick"
       />
       
       <div v-else class="chat-history">
@@ -48,7 +47,7 @@
         <el-input
           v-model="inputText"
           type="textarea"
-          :rows="3"
+          :rows="6"
           :placeholder="inputPlaceholder"
           @keyup.enter.ctrl="sendMessage"
         />
@@ -88,7 +87,7 @@ import { generateSqlResponse } from '../api/mock'
 const chatHistory = ref([])
 const inputText = ref('')
 const loading = ref(false)
-const showSqlEditor = ref(false)
+const showSqlEditor = ref(true)
 const sqlInput = ref('')
 const sqlEditorRef = ref(null)
 
@@ -131,13 +130,6 @@ const prompts = [
   }
 ]
 
-const handleFeatureClick = (feature) => {
-  if (feature === 'sql-pro') {
-    showSqlEditor.value = true
-  } else if (feature === 'sql-basic') {
-    showSqlEditor.value = false
-  }
-}
 
 const handleSqlChange = debounce((value) => {
   sqlInput.value = value
@@ -198,7 +190,7 @@ const resetChat = () => {
   if (sqlEditorRef.value) {
     sqlEditorRef.value.setValue('')
   }
-  showSqlEditor.value = false
+  showSqlEditor.value = true;
 }
 
 // 暴露重置方法给父组件
@@ -226,7 +218,6 @@ function debounce(fn, delay) {
 }
 
 .chat-main {
-  flex: 1;
   overflow-y: auto;
   padding: 1rem;
 }

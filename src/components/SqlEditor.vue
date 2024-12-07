@@ -12,6 +12,14 @@ const props = defineProps({
   modelValue: {
     type: String,
     default: ''
+  },
+  height: {
+    type: [String, Number],
+    default: '400px'
+  },
+  resizable: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -170,7 +178,7 @@ const createEditor = () => {
           documentation: '删除表'
         },
 
-        // 条件和运算符
+        // 条件和运算
         {
           label: 'WHERE',
           kind: monaco.languages.CompletionItemKind.Keyword,
@@ -303,53 +311,102 @@ const createEditor = () => {
   })
 
   editor.value = monaco.editor.create(editorContainer.value, {
-    value: props.modelValue,
-    language: 'sql',
-    theme: 'vs-dark',
-    minimap: { enabled: true },
-    automaticLayout: true,
-    fontSize: 14,
-    lineNumbers: 'on',
-    scrollBeyond: false,
-    roundedSelection: false,
-    padding: { top: 5 },
-    suggestOnTriggerCharacters: true,
-    wordWrap: 'on',
+    value: props.modelValue,            // 编辑器的初始内容
+    language: 'sql',                    // 设置语言为SQL
+    theme: 'vs-dark',                   // 使用暗色主题
+    minimap: { enabled: true },         // 启用右侧小地图
+    automaticLayout: true,              // 自动调整布局
+    fontSize: 14,                       // 字体大小
+    lineNumbers: 'on',                  // 显示行号
+    scrollBeyond: false,                // 禁止滚动超过最后一行
+    roundedSelection: false,            // 禁用圆角选择
+    padding: { top: 5 },                // 编辑器内容上方填充
+    suggestOnTriggerCharacters: true,   // 在触发字符时显示建议
+    wordWrap: 'on',                     // 启用自动换行
+
+    // 滚动条配置
     scrollbar: {
-      vertical: 'visible',
-      horizontal: 'visible',
-      useShadows: false,
-      verticalScrollbarSize: 10,
-      horizontalScrollbarSize: 10
+      vertical: 'visible',              // 显示垂直滚动条
+      horizontal: 'visible',            // 显示水平滚动条
+      useShadows: false,               // 禁用滚动条阴影
+      verticalScrollbarSize: 10,       // 垂直滚动条宽度
+      horizontalScrollbarSize: 10      // 水平滚动条高度
     },
-    formatOnType: true,
-    formatOnPaste: true,
+
+    // 尺寸配置
+    dimension: {
+      height: typeof props.height === 'number' ? props.height : parseInt(props.height),
+    },
+
+    fixedOverflowWidgets: false,        // 溢出部件不固定
+    mouseWheelZoom: true,               // 允许使用鼠标滚轮缩放
+    manualHeight: true,                 // 允许手动调整高度
+    dragAndDrop: true,                  // 启用拖放功能
+    formatOnType: true,                 // 输入时自动格式化
+    formatOnPaste: true,                // 粘贴时自动格式化
+
+    // 语义高亮配置
     semanticHighlighting: {
-      enabled: true
+      enabled: true                     // 启用语义高亮
     },
-    colorDecorators: true,
-    glyphMargin: true,
-    bracketPairColorization: { enabled: true },
+
+    colorDecorators: true,              // 启用颜色装饰器
+    glyphMargin: true,                  // 显示字形边距
+    bracketPairColorization: { 
+      enabled: true                     // 启用括号对着色
+    },
+
+    // 代码参考线配置
     guides: {
-      bracketPairs: true,
-      indentation: true
+      bracketPairs: true,               // 显示括号对参考线
+      indentation: true                 // 显示缩进参考线
     },
-    contextmenu: true,
+
+    contextmenu: true,                  // 启用右键菜单
+
+    // 快速建议配置
     quickSuggestions: {
-      other: true,
-      comments: true,
-      strings: true
+      other: true,                      // 其他情况下显示建议
+      comments: true,                   // 注释中显示建议
+      strings: true                     // 字符串中显示建议
     },
+    quickSuggestionsDelay: 0,           // 建议显示延迟时间
+
+    // 建议配置
+    suggest: {
+      snippetsPreventQuickSuggestions: true,  // 使用代码片段时阻止快速建议
+      showKeywords: true,               // 显示关键字建议
+      showSnippets: true,               // 显示代码片段建议
+      showUsers: true,                  // 显示用户建议
+      showMethods: true,                // 显示方法建议
+      preview: true,                    // 启用建议预览
+      previewMode: 'prefix',            // 预览模式为前缀
+      filterGraceful: true,             // 启用优雅的过滤
+      localityBonus: true,              // 本地建议优先
+      shareSuggestSelections: true,     // 共享建议选择
+      showIcons: true,                  // 显示建议图标
+      maxVisibleSuggestions: 12,        // 最大可见建议数
+      insertMode: 'insert'              // 插入模式
+    },
+
+    // 基于单词的建议配置
+    wordBasedSuggestions: true,         // 启用基于单词的建议
+    wordBasedSuggestionsOnlySameLanguage: true,  // 仅显示相同语言的单词建议
+
+    // 参数提示配置
     parameterHints: {
-      enabled: true
+      enabled: true                     // 启用参数提示
     },
-    tabSize: 2,
-    autoClosingBrackets: 'always',
-    autoClosingQuotes: 'always',
-    autoSurround: 'quotes',
-    'sql.format.enable': true,
-    'sql.format.linesBetweenQueries': 2,
-    'sql.validate.enable': true,
+
+    tabSize: 2,                         // 制表符��小
+    autoClosingBrackets: 'always',      // 自动闭合括号
+    autoClosingQuotes: 'always',        // 自动闭合引号
+    autoSurround: 'quotes',             // 自动环绕引号
+
+    // SQL 特定配置
+    'sql.format.enable': true,          // 启用 SQL 格式化
+    'sql.format.linesBetweenQueries': 2,// SQL 查询之间的空行数
+    'sql.validate.enable': true,        // 启用 SQL 验证
   })
 
   // 注册 hover provider
@@ -432,7 +489,7 @@ const createEditor = () => {
     }
   });
 
-  // 添加辅助函数来获取装饰器类名
+  // 添加辅助函数来获取装��器类名
   const getDecorationClass = (severity) => {
     switch (severity) {
       case monaco.MarkerSeverity.Error:
@@ -459,6 +516,20 @@ const createEditor = () => {
   toRaw(editor.value).onDidChangeModelContent(() => {
     const value = toRaw(editor.value).getValue()
     handleContentChange(value)
+  })
+
+  // 添加大小调整监听器
+  const resizeObserver = new ResizeObserver(() => {
+    if (editor.value) {
+      toRaw(editor.value).layout()
+    }
+  })
+
+  resizeObserver.observe(editorContainer.value)
+
+  // 在组件销毁时清理
+  onBeforeUnmount(() => {
+    resizeObserver.disconnect()
   })
 }
 
@@ -495,10 +566,13 @@ defineExpose({
 <style scoped>
 .sql-editor-container {
   width: 100%;
-  height: 200px;
+  height: v-bind('typeof props.height === "number" ? props.height + "px" : props.height');
   border: 1px solid var(--el-border-color);
   border-radius: 4px;
   overflow: hidden;
+  position: relative;
+  resize: v-bind(props.resizable ? 'vertical' : 'none');
+  min-height: 100px;
 }
 
 :deep(.monaco-editor) {
@@ -526,5 +600,11 @@ defineExpose({
 :deep(.sql-warning-glyph) {
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8 1l7 14H1z" fill="%23ffa500"/><path d="M8 6v5" stroke="white" stroke-width="2"/><circle cx="8" cy="13" r="1" fill="white"/></svg>') center center no-repeat;
   margin-left: 5px;
+}
+
+/* 添加拖动手柄的样式 */
+:deep(.monaco-editor .monaco-editor-background) {
+  resize: vertical;
+  min-height: 100px;
 }
 </style> 
