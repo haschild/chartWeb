@@ -116,114 +116,189 @@ const createEditor = () => {
   // 配置 SQL 语言特性
   monaco.languages.registerCompletionItemProvider('sql', {
     provideCompletionItems: () => {
-      return {
-        suggestions: [
-          {
-            label: 'SELECT',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'SELECT ${1:columns} FROM ${2:table}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '查询数据'
-          },
-          // 创建相关
-          {
-            label: 'CREATE TABLE',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'CREATE TABLE ${1:table_name} (\n\t${2:column_name} ${3:data_type}${4: constraints}\n)',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '创建新表'
-          },
-          {
-            label: 'CREATE INDEX',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'CREATE INDEX ${1:index_name} ON ${2:table_name} (${3:column_name})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '创建索引'
-          },
-          // 修改相关
-          {
-            label: 'UPDATE',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'UPDATE ${1:table_name} SET ${2:column_name} = ${3:value} WHERE ${4:condition}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '更新数据'
-          },
-          {
-            label: 'ALTER TABLE',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'ALTER TABLE ${1:table_name} ${2:ADD|MODIFY|DROP} ${3:column_name} ${4:data_type}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '修改表结构'
-          },
-          // 删除相关
-          {
-            label: 'DELETE',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'DELETE FROM ${1:table_name} WHERE ${2:condition}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '删除数据'
-          },
-          {
-            label: 'DROP TABLE',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'DROP TABLE ${1:table_name}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '删除表'
-          },
-          {
-            label: 'DROP INDEX',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'DROP INDEX ${1:index_name} ON ${2:table_name}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '删除索引'
-          },
-          // 插入相关
-          {
-            label: 'INSERT',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'INSERT INTO ${1:table_name} (${2:columns}) VALUES (${3:values})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '插入数据'
-          },
-          // 约束相关
-          {
-            label: 'PRIMARY KEY',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'PRIMARY KEY (${1:column_name})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '主键约束'
-          },
-          {
-            label: 'FOREIGN KEY',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'FOREIGN KEY (${1:column_name}) REFERENCES ${2:parent_table}(${3:parent_column})',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '外键约束'
-          },
-          // 条件相关
-          {
-            label: 'WHERE',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'WHERE ${1:condition}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '条件筛选'
-          },
-          {
-            label: 'GROUP BY',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'GROUP BY ${1:column_name}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '分组'
-          },
-          {
-            label: 'ORDER BY',
-            kind: monaco.languages.CompletionItemKind.Keyword,
-            insertText: 'ORDER BY ${1:column_name} ${2:ASC|DESC}',
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            documentation: '排序'
-          }
-        ]
-      };
+      const suggestions = [
+        // DML (数据操作语言)
+        {
+          label: 'SELECT',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'SELECT ${1:*} FROM ${2:table_name}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '查询数据'
+        },
+        {
+          label: 'INSERT INTO',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'INSERT INTO ${1:table_name} (${2:columns}) VALUES (${3:values})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '插入数据'
+        },
+        {
+          label: 'UPDATE',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'UPDATE ${1:table_name} SET ${2:column} = ${3:value} WHERE ${4:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '更新数据'
+        },
+        {
+          label: 'DELETE',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'DELETE FROM ${1:table_name} WHERE ${2:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '删除数据'
+        },
+
+        // DDL (数据定义语言)
+        {
+          label: 'CREATE TABLE',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'CREATE TABLE ${1:table_name} (\n\t${2:column_name} ${3:data_type}${4:(size)} ${5:constraints}\n)',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '创建新表'
+        },
+        {
+          label: 'ALTER TABLE',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'ALTER TABLE ${1:table_name}\n${2|ADD COLUMN,MODIFY COLUMN,DROP COLUMN|} ${3:column_name} ${4:data_type}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '修改表结构'
+        },
+        {
+          label: 'DROP TABLE',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'DROP TABLE ${1:table_name}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '删除表'
+        },
+
+        // 条件和运算符
+        {
+          label: 'WHERE',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'WHERE ${1:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '条件筛选'
+        },
+        {
+          label: 'AND',
+          kind: monaco.languages.CompletionItemKind.Operator,
+          insertText: 'AND ${1:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '逻辑与'
+        },
+        {
+          label: 'OR',
+          kind: monaco.languages.CompletionItemKind.Operator,
+          insertText: 'OR ${1:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '逻辑或'
+        },
+        {
+          label: 'IN',
+          kind: monaco.languages.CompletionItemKind.Operator,
+          insertText: 'IN (${1:value1}, ${2:value2})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '在指定的值列表中'
+        },
+        {
+          label: 'BETWEEN',
+          kind: monaco.languages.CompletionItemKind.Operator,
+          insertText: 'BETWEEN ${1:value1} AND ${2:value2}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '在指定的范围内'
+        },
+        {
+          label: 'LIKE',
+          kind: monaco.languages.CompletionItemKind.Operator,
+          insertText: 'LIKE ${1:pattern}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '模式匹配'
+        },
+
+        // 聚合函数
+        {
+          label: 'COUNT',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'COUNT(${1:*})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '计数'
+        },
+        {
+          label: 'SUM',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'SUM(${1:column})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '求和'
+        },
+        {
+          label: 'AVG',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'AVG(${1:column})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '平均值'
+        },
+        {
+          label: 'MAX',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'MAX(${1:column})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '最大值'
+        },
+        {
+          label: 'MIN',
+          kind: monaco.languages.CompletionItemKind.Function,
+          insertText: 'MIN(${1:column})',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '最小值'
+        },
+
+        // 分组和排序
+        {
+          label: 'GROUP BY',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'GROUP BY ${1:column}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '分组'
+        },
+        {
+          label: 'HAVING',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'HAVING ${1:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '分组条件'
+        },
+        {
+          label: 'ORDER BY',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'ORDER BY ${1:column} ${2|ASC,DESC|}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '排序'
+        },
+
+        // 连接
+        {
+          label: 'JOIN',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'JOIN ${1:table} ON ${2:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '内连接'
+        },
+        {
+          label: 'LEFT JOIN',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'LEFT JOIN ${1:table} ON ${2:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '左连接'
+        },
+        {
+          label: 'RIGHT JOIN',
+          kind: monaco.languages.CompletionItemKind.Keyword,
+          insertText: 'RIGHT JOIN ${1:table} ON ${2:condition}',
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          documentation: '右连接'
+        }
+      ];
+
+      return { suggestions };
     }
   })
 
