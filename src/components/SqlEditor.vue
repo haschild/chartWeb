@@ -15,7 +15,7 @@ const props = defineProps({
   },
   height: {
     type: [String, Number],
-    default: '400px'
+    default: '300px'
   },
   resizable: {
     type: Boolean,
@@ -514,7 +514,7 @@ const createEditor = () => {
 
     // 语义高亮配置
     semanticHighlighting: {
-      enabled: true                     // 启用语义高亮
+      enabled: true                     // 启用语���高亮
     },
 
     colorDecorators: true,              // 启用颜色装饰器
@@ -641,20 +641,20 @@ const createEditor = () => {
   }
 
   // 添加格式化操作到右键菜单
-  toRaw(editor.value).addAction({
-    id: 'format-sql',
-    label: '格式化 SQL',
-    contextMenuGroupId: 'modification',
-    run: () => {
-      const validator = new SQLValidator();
-      const text = toRaw(editor.value).getValue();
-      const { formatted, error } = validator.formatSQL(text);
+  // toRaw(editor.value).addAction({
+  //   id: 'format-sql',
+  //   label: '格式化 SQL',
+  //   contextMenuGroupId: 'modification',
+  //   run: () => {
+  //     const validator = new SQLValidator();
+  //     const text = toRaw(editor.value).getValue();
+  //     const { formatted, error } = validator.formatSQL(text);
       
-      if (!error) {
-        toRaw(editor.value).setValue(formatted);
-      }
-    }
-  });
+  //     if (!error) {
+  //       toRaw(editor.value).setValue(formatted);
+  //     }
+  //   }
+  // });
 
   // 添加辅助函数来获取装器类名
   const getDecorationClass = (severity) => {
@@ -726,6 +726,11 @@ defineExpose({
   },
   getValue: () => {
     return editor.value ? toRaw(editor.value).getValue() : ''
+  },
+  // 添加验证方法
+  validate: () => {
+    const value = editor.value ? toRaw(editor.value).getValue() : ''
+    return value.trim() !== ''
   }
 })
 </script>

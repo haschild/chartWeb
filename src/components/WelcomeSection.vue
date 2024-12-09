@@ -2,7 +2,7 @@
   <div class="welcome-section">
     <div class="welcome-header">
       <h2>欢迎使用 SQL 助手</h2>
-      <p class="subtitle">请选择以下功能开始使用</p>
+      <p class="subtitle">请输入SQL语句</p>
     </div>
     
 
