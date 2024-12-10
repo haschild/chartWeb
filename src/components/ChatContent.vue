@@ -15,60 +15,64 @@
     </div>
 
     <!-- SQL专业版功能区域 -->
+    <el-card  style="width: 50%; margin: 0 auto">
     <div v-if="showSqlEditor" class="sql-pro-section">
       <!-- SQL编辑器 -->
-      <div class="sql-editor-wrapper">
         <div class="section-title">SQL编辑器</div>
         <SqlEditor
           v-model="sqlInput"
           @change="handleSqlChange"
           ref="sqlEditorRef"
         />
-      </div>
 
       <!-- 提示词区域 -->
-      <div class="prompt-suggestions">
-        <div class="section-title">常用提示词</div>
-        <div class="prompt-items">
-          <el-button
-            v-for="prompt in prompts"
+        <div class="section-title" style="margin-top: 10px;">常用提示词：
+          <el-button type="primary"  v-for="prompt in prompts"
             :key="prompt.id"
             size="small"
-            @click="applyPrompt(prompt)"
-          >
-            {{ prompt.label }}
-          </el-button>
+            plain
+            @click="applyPrompt(prompt)">{{prompt.label}}</el-button>
         </div>
       </div>
-    </div>
 
     <div class="chat-input-area">
-      <div class="input-wrapper">
         <el-input
           v-model="inputText"
           type="textarea"
-          :rows="6"
+          :rows="3"
           :placeholder="inputPlaceholder"
           @keyup.enter.ctrl="sendMessage"
+          resize="none"
         />
-        <div class="input-footer">
-          <el-button 
-            type="primary" 
-            :icon="Promotion"
-            :loading="loading"
-            @click="sendMessage"
-          >
-            发送
-          </el-button>
+        <div class="action-buttons">
+          <div class="right-actions">
+
+
+            <el-button
+              icon="Position" 
+              circle 
+              :loading="loading"
+              type="primary"
+              @click="sendMessage"
+            >
+            </el-button>
+          </div>
         </div>
-      </div>
     </div>
+  </el-card>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { Plus, Picture, Promotion } from '@element-plus/icons-vue'
+import { 
+  Picture, 
+  Promotion, 
+  Paperclip, 
+  Microphone,
+  RefreshRight
+} from '@element-plus/icons-vue'
 import WelcomeSection from './WelcomeSection.vue'
 import ChatMessage from './ChatMessage.vue'
 import SqlEditor from './SqlEditor.vue'
@@ -89,31 +93,6 @@ const inputPlaceholder = computed(() => {
 })
 
 const prompts = [
-  {
-    id: 1,
-    label: 'Oracle转Postgresql',
-    text: '请将Oracle 语句转换为Postgresql语句，并解释主要的改动点。'
-  },
-  {
-    id: 2,
-    label: 'MySQL转Postgresql',
-    text: '请将MySQL 语句转换为Postgresql语句，并解释主要的改动点。'
-  },
-  {
-    id: 3,
-    label: 'SQL美化',
-    text: '请帮我格式化和美化SQL语句，使其更易读。'
-  },
-  {
-    id: 4,
-    label: 'SQL优化建议',
-    text: '请分析SQL语句的性能，并给出优化建议。'
-  },
-  {
-    id: 5,
-    label: 'SQL语法检查',
-    text: '请检查SQL语句是否存在语法错误或潜在问题。'
-  },
   {
     id: 5,
     label: '继续优化',
@@ -144,7 +123,7 @@ const sendMessage = async () => {
   
   try {
     const response = await request({
-      url: '/translate',
+      url: '/api/sql/translate',
       method: 'POST',
       data: {
         sql: sqlInput.value,
@@ -200,12 +179,14 @@ function debounce(fn, delay) {
 
 <style scoped>
 .chat-container {
+  padding: 20px;
   height: 100%;
   display: flex;
   flex-direction: column;
 }
 
 .chat-main {
+  flex: 1;
   overflow-y: auto;
   padding: 1rem;
 }
@@ -213,6 +194,7 @@ function debounce(fn, delay) {
 .sql-pro-section {
   border-top: 1px solid var(--el-border-color-lighter);
   padding: 1rem;
+  padding-bottom: 0;
   background-color: var(--el-bg-color-page);
 }
 
@@ -222,34 +204,55 @@ function debounce(fn, delay) {
   margin-bottom: 8px;
 }
 
-.sql-editor-wrapper {
-  margin-bottom: 1rem;
-}
 
-.prompt-suggestions {
-  margin-bottom: 1rem;
-}
 
-.prompt-items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 
 .chat-input-area {
-  border-top: 1px solid var(--el-border-color-lighter);
-  padding: 1rem;
+  border: 1px solid var(--el-border-color);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 10px;
+  background-color: transparent;
+  border-radius: 8px;
+}
+.chat-input-area:hover {
+  border: 1px solid var(--el-border-color-lighter);
 }
 
 .input-wrapper {
-  position: relative;
+  flex:1;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 10px 16px;
+
 }
 
-.input-footer {
+:deep(.el-textarea__inner) {
+  border: none;
+  padding: 8px 0;
+  min-height: 24px !important;
+  resize: none;
+  box-shadow: none;
+  font-size: 14px;
+}
+
+:deep(.el-textarea__inner:focus) {
+  box-shadow: none;
+}
+
+
+ .right-actions {
   display: flex;
-  justify-content: space-between;
+  gap: 8px;
   align-items: center;
-  padding-top: 0.5rem;
 }
 
+
+:deep(.el-button--primary) {
+  padding: 8px 16px;
+  height: 32px;
+  border-radius: 6px;
+}
 </style> 
