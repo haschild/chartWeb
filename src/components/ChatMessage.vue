@@ -10,25 +10,32 @@
       </template>
       <template v-else>
         <div class="ai-response">
-          <div class="response-text" v-html="renderMarkdown(message.content.text)"></div>
-          <div v-if="message.content.sqltext" class="sql-block">
-            <div class="sql-header">
-              <span class="sql-icon">
-                <el-icon><Document /></el-icon>
-              </span>
-              <span>sql</span>
-              <el-button 
-                class="copy-btn" 
-                type="primary" 
-                link 
-                size="small"
-                @click="copySql(message.content.sqltext)"
-              >
-                复制
-              </el-button>
-            </div>
-            <pre class="sql-code"><code v-html="highlightSql(message.content.sqltext)"></code></pre>
+          <div v-if="message.loading" class="loading-animation">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
+          <template v-else>
+            <div class="response-text" v-html="renderMarkdown(message.content.text)"></div>
+            <div v-if="message.content.sqltext" class="sql-block">
+              <div class="sql-header">
+                <span class="sql-icon">
+                  <el-icon><Document /></el-icon>
+                </span>
+                <span>sql</span>
+                <el-button 
+                  class="copy-btn" 
+                  type="primary" 
+                  link 
+                  size="small"
+                  @click="copySql(message.content.sqltext)"
+                >
+                  复制
+                </el-button>
+              </div>
+              <pre class="sql-code"><code v-html="highlightSql(message.content.sqltext)"></code></pre>
+            </div>
+          </template>
         </div>
       </template>
     </div>
@@ -165,5 +172,36 @@ const copySql = async (sql) => {
   padding-left: 1em;
   border-left: 4px solid #dfe2e5;
   color: #6a737d;
+}
+
+.loading-animation {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+}
+
+.loading-animation span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--el-color-primary);
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loading-animation span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-animation span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { 
+    transform: scale(0);
+  } 
+  40% { 
+    transform: scale(1.0);
+  }
 }
 </style> 

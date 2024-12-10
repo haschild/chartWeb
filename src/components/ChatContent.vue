@@ -1,6 +1,6 @@
 <template>
   <div class="chat-container">
-    <div class="chat-main">
+    <div class="chat-main" ref="chatMainRef">
       <WelcomeSection
         v-if="!chatHistory.length"
       />
@@ -65,7 +65,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { 
   Picture, 
   Promotion, 
@@ -85,6 +85,7 @@ const loading = ref(false)
 const showSqlEditor = ref(true)
 const sqlInput = ref('')
 const sqlEditorRef = ref(null)
+const chatMainRef = ref(null)
 
 const inputPlaceholder = computed(() => {
   return showSqlEditor 
@@ -114,12 +115,24 @@ const sendMessage = async () => {
   
   loading.value = true
   
-  const messageContent = inputText.value ||sqlInput.value
+  const messageContent = inputText.value || sqlInput.value
 
   chatHistory.value.push({
     type: 'user',
     content: messageContent
   })
+  
+  chatHistory.value.push({
+    type: 'ai',
+    loading: true,
+    content: {
+      text: '正在思考...',
+      sqltext: ''
+    }
+  })
+  
+  await nextTick()
+  scrollToBottom()
   
   try {
     const response = await request({
@@ -131,7 +144,7 @@ const sendMessage = async () => {
       }
     })
 
-    
+    chatHistory.value.pop()
     chatHistory.value.push({
       type: 'ai',
       content: {
@@ -139,7 +152,12 @@ const sendMessage = async () => {
         sqltext: response.data.postgresqlSql
       }
     })
+    
+    await nextTick()
+    scrollToBottom()
+    
   } catch (error) {
+    chatHistory.value.pop()
     console.error('Error:', error)
     ElMessage.error('发送失败，请重试')
   } finally {
@@ -148,6 +166,12 @@ const sendMessage = async () => {
   }
 }
 
+const scrollToBottom = () => {
+  const chatMain = chatMainRef.value
+  if (chatMain) {
+    chatMain.scrollTop = chatMain.scrollHeight
+  }
+}
 
 // 添加 resetChat 函数定义
 const resetChat = () => {
