@@ -49,3 +49,21 @@ app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
     console.log(`Test URL: http://localhost:${port}/api/chat`);
 });
+
+
+/**
+ * 
+ * @done 结束
+ * 空格+文件名；是文件名字
+ * 
+ * 
+ * 做一个新的页面 sql 转换 + 下拉框 + 下载按钮
+ * 
+ * DDLTYPE
+ * 
+ * get api/download
+ * 
+ * 数据迁移-COPY/table
+ * 
+ * 
+ */

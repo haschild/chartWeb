@@ -1,54 +1,39 @@
 <template>
-  <div class="app-container">
-    <div class="sidebar">
-      <el-button 
-        class="new-chat-btn" 
-        type="primary" 
-        @click="startNewChat"
-      >
-        <el-icon><Plus /></el-icon>
-        新对话
-      </el-button>
-      <!-- 其他侧边栏内容 -->
-    </div>
-    
-    <div class="main-content">
-      <ChatContent ref="chatContentRef" />
-    </div>
-  </div>
+  <el-container style="height: 100%;">
+    <el-header><LayoutHeader @select="handleSelect"></LayoutHeader></el-header>
+    <el-container style="height: calc(100% - 60px)">
+      <el-aside v-if="firstMenu === 'convertion'" width="200px">
+        <LayoutMenu></LayoutMenu>
+      </el-aside>
+      <el-container>
+        <ChatContent :firstMenu="firstMenu" ref="chatContentRef" />
+        <el-footer>Footer</el-footer>
+      </el-container>
+    </el-container>
+  </el-container>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
-import ChatContent from './components/ChatContent.vue'
+import { ref } from "vue";
+import ChatContent from "./components/ChatContent.vue";
+import LayoutMenu from "./components/layout-menu.vue";
+import LayoutHeader from "./components/layout-header.vue";
+const chatContentRef = ref(null);
 
-const chatContentRef = ref(null)
+let firstMenu = ref('convertion');
 
 const startNewChat = () => {
-  chatContentRef.value?.resetChat()
+  chatContentRef.value?.resetChat();
+};
+
+const handleSelect = (key) => {
+  firstMenu.value = key;
+  console.log(firstMenu.value)
 }
 </script>
 
 <style scoped>
-.app-container {
-  display: flex;
-  height: 100vh;
-}
-
-.sidebar {
-  width: 260px;
-  padding: 1rem;
-  border-right: 1px solid var(--el-border-color-lighter);
-}
-
-.new-chat-btn {
-  width: 100%;
-  justify-content: flex-start;
-  padding-left: 1.5rem;
-}
-
-.main-content {
-  flex: 1;
+.el-footer {
+  height: 30px;
 }
 </style>

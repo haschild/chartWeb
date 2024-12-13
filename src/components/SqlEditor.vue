@@ -15,7 +15,7 @@ const props = defineProps({
   },
   height: {
     type: [String, Number],
-    default: '300px'
+    default: '150px'
   },
   resizable: {
     type: Boolean,
