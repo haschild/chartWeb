@@ -108,8 +108,7 @@ const applyPrompt = (prompt) => {
 };
 
 const sendMessage = async () => {
-  if ((!inputText.value.trim() && !sqlInput.value.trim()) || loading.value)
-    return;
+  if ((!inputText.value.trim() && !sqlInput.value.trim()) || loading.value) return;
 
   loading.value = true;
 
@@ -120,49 +119,49 @@ const sendMessage = async () => {
     content: messageContent,
   });
 
-  chatHistory.value.push({
+  // 创建初始 AI 消息
+  const aiMessage = {
     type: "ai",
     loading: true,
     content: {
       text: "正在思考...",
       sqltext: "",
     },
-  });
+  };
+  chatHistory.value.push(aiMessage);
 
   await nextTick();
   scrollToBottom();
 
   try {
-    const response = await new http({
-      headers: {
-        "Content-Type": "application/json;charset=UTF-8",
-        "Accept": "text/event-stream",
-      },
-      responseType: 'stream'
- }).post("/api/sql/translate", {
-      data: {
-        sql: sqlInput.value,
-        prompt: inputText.value,
-      },
-
-     
+    await http.stream("/api/sql/translate", {
+      sql: sqlInput.value,
+      prompt: inputText.value,
+    }, {
+      onMessage: (data) => {
+        console.log('收到消息:', data);
+        if (data?.content) {
+          aiMessage.loading = false;
+          // 确保内容不为空
+          const text = data.content.text || aiMessage.content.text;
+          const sqltext = data.content.sqltext || aiMessage.content.sqltext;
+          
+          // 更新消息内容
+          aiMessage.content = {
+            text: text,
+            sqltext: sqltext,
+          };
+          
+          nextTick(() => scrollToBottom());
+        }
+      }
     });
-
-    chatHistory.value.pop();
-    chatHistory.value.push({
-      type: "ai",
-      content: {
-        text: response.data.result,
-        sqltext: response.data.postgresqlSql,
-      },
-    });
-
-    await nextTick();
-    scrollToBottom();
   } catch (error) {
-    chatHistory.value.pop();
     console.error("Error:", error);
-    ElMessage.error("发送失败，请重试");
+    if (aiMessage.loading) {
+      chatHistory.value.pop();
+    }
+    ElMessage.error(error.message || "发送失败，请重试");
   } finally {
     loading.value = false;
     inputText.value = "";
