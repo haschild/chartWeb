@@ -13,10 +13,14 @@
 <script setup>
 import { ref } from "vue";
 
-const activeIndex = ref("convertion");
+// 获取 pinia数据
+import { useChatStore } from "@/store";
+const chatStore = useChatStore()
+
+const activeIndex = chatStore.firstMenu;
 const emit = defineEmits(['select'])
 const handleSelect = (key, keyPath) => {
-  emit('select', key)
+  chatStore.setFirstMenu(key)
 }
 </script>
 

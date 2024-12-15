@@ -1,7 +1,7 @@
 <template>
   <div class="chat-container">
     <!-- 欢迎界面  - 聊天界面-->
-    <div v-if="props.firstMenu !== 'tools'" class="chat-main" ref="chatMainRef">
+    <div class="chat-main" ref="chatMainRef">
       <WelcomeSection v-if="!chatHistory.length" />
 
       <div v-else class="chat-history">
@@ -15,59 +15,13 @@
       </div>
     </div>
 
-    <el-card class="tools-card" v-if="props.firstMenu === 'tools'">
-      <el-form>
-        <el-form-item label="Type">
-          <el-select
-            style="width: 200px; margin-right: 10px"
-            v-model="type"
-            placeholder="请选择"
-          >
-            <el-option label="数据同步" value="COPY" />
-            <el-option label="表(约束、索引)" value="TABLE" />
-            <el-option label="视图" value="VIEW" />
-            <el-option label="INSERT语句" value="INSERT" />
-            <el-option label="序号" value="SEQUENCE" />
-            <el-option label="函数" value="FUNCTION" />
-            <el-option label="存储过程" value="PROCEDURE" />
-          </el-select>
-
-          <el-button type="primary">确定</el-button>
-        </el-form-item>
-      </el-form>
-
-      <pre class="tools-card-text">
-            1. 请输入表名
-            2. 请输入表名
-            3. 请输入表名
-            4. 请输入表名
-            5. 请输入表名
-            6. 请输入表名
-            7. 请输入表名
-            8. 请输入表名
-            9. 请输入表名
-            10. 请输入表名
-          </pre
-      >
-
-      <el-form>
-        <el-form-item label="fileName">
-          <el-input
-            style="width: 200px; margin-right: 10px"
-            v-model="fileName"
-          ></el-input>
-          <el-button type="primary">下载</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
 
     <!-- 输入区域 -->
     <el-card
-      v-if="props.firstMenu !== 'tools'"
-      style="width: 50%; margin: 0 auto"
+      style="width: 800px; margin: 0 auto"
     >
       <!-- SQL专业版功能区域 -->
-      <div v-if="showSqlEditor" class="sql-pro-section">
+      <div  class="sql-pro-section">
         <!-- SQL编辑器 -->
         <div class="section-title">SQL编辑器</div>
         <SqlEditor
@@ -96,13 +50,13 @@
         <el-input
           v-model="inputText"
           type="textarea"
-          :rows="2"
-          :placeholder="inputPlaceholder"
+          :rows="3"
+          :autosize="{ minRows: 3, maxRows: 6 }"
+          placeholder="请描述您的SQL转换需求..."
           @keyup.enter.ctrl="sendMessage"
           resize="none"
         />
-        <div class="action-buttons">
-          <div class="right-actions">
+          <div class="right-actions" title="发送">
             <el-button
               icon="Position"
               circle
@@ -112,7 +66,6 @@
             >
             </el-button>
           </div>
-        </div>
       </div>
     </el-card>
   </div>
@@ -120,39 +73,23 @@
 
 <script setup>
 import { ref, computed, nextTick } from "vue";
-import {
-  Picture,
-  Promotion,
-  Paperclip,
-  Microphone,
-  RefreshRight,
-} from "@element-plus/icons-vue";
-import WelcomeSection from "./WelcomeSection.vue";
-import ChatMessage from "./ChatMessage.vue";
-import SqlEditor from "./SqlEditor.vue";
-import request from "../utils/request";
-import { ElMessage } from "element-plus";
 
-// 接收父组件传递的参数 -- props
-const props = defineProps({
-  firstMenu: {
-    type: String,
-    default: "convertion",
-  },
-});
+import WelcomeSection from "@/components/WelcomeSection.vue";
+import ChatMessage from "@/components/ChatMessage.vue";
+import SqlEditor from "@/components/SqlEditor.vue";
+import {http} from "@/utils/request";
+import { ElMessage } from "element-plus";
+import { useChatStore } from "@/store";
+
+const chatStore = useChatStore();
 const chatHistory = ref([]);
 const inputText = ref("");
-const loading = ref(false);
-const showSqlEditor = computed(() => props.firstMenu === "convertion");
+const loading = ref(false);   
 const sqlInput = ref("");
 const sqlEditorRef = ref(null);
 const chatMainRef = ref(null);
 
-const inputPlaceholder = computed(() => {
-  return showSqlEditor.value
-    ? "请描述您的SQL转换需求..."
-    : "输入 @ 或 / 选择技能...";
-});
+
 
 const prompts = [
   {
@@ -196,15 +133,19 @@ const sendMessage = async () => {
   scrollToBottom();
 
   try {
-    const response = await request.post("/api/sql/translate", {
+    const response = await new http({
+      headers: {
+        "Content-Type": "application/json;charset=UTF-8",
+        "Accept": "text/event-stream",
+      },
+      responseType: 'stream'
+ }).post("/api/sql/translate", {
       data: {
         sql: sqlInput.value,
         prompt: inputText.value,
       },
-      headers: {
-        "Content-Type": "application/json;charset=UTF-8",
-        Accept: "text/event-stream",
-      },
+
+     
     });
 
     chatHistory.value.pop();
@@ -243,10 +184,9 @@ const resetChat = () => {
   if (sqlEditorRef.value) {
     sqlEditorRef.value.setValue("");
   }
-  showSqlEditor.value = true;
 };
 
-// 暴��重置方法给父组件
+// 暴露重置方法给父组件
 defineExpose({
   resetChat,
 });
@@ -265,7 +205,7 @@ function debounce(fn, delay) {
 
 <style lang="scss">
 .chat-container {
-  padding: 20px;
+  
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -303,10 +243,10 @@ function debounce(fn, delay) {
   }
 
   .chat-input-area {
+    position: relative;
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 10px;
     background-color: transparent;
     border-radius: 8px;
   }
@@ -337,6 +277,7 @@ function debounce(fn, delay) {
     display: flex;
     gap: 8px;
     align-items: center;
+    margin-left: 10px;
   }
 
   :deep(.el-button--primary) {

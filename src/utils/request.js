@@ -1,7 +1,7 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
 
-class http {
+export class http {
 
   // 默认配置项
   config = {
@@ -9,6 +9,7 @@ class http {
     timeout: 15000, // 请求超时时间
     headers: {
       "Content-Type": "application/json;charset=UTF-8",
+      "Accept": "text/event-stream",
     },
   };
   // 合并参数
@@ -32,12 +33,12 @@ class http {
         }
 
         // 确保请求体是JSON格式
-        if (
-          config.data &&
-          config.headers["Content-Type"] === "application/json"
-        ) {
-          config.data = JSON.stringify(config.data);
-        }
+        // if (
+        //   config.data &&
+        //   config.headers["Content-Type"] === "application/json"
+        // ) {
+        //   config.data = JSON.stringify(config.data);
+        // }
 
         return config;
       },
