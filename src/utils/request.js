@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { useChatStore } from '@/store'
 
 // 创建 axios 实例用于普通请求
 const request = axios.create({
@@ -38,14 +39,15 @@ request.interceptors.response.use(
     const res = response.data
 
     // 自动存储 session token
-    const token = response.headers['authorization'] || response.headers['session-id']
+    const token =response.headers['session-id']|| response.headers['authorization']
     if (token) {
       sessionStorage.setItem('token', token)
+      console.log(token,"token")
+      useChatStore().setCurrentSessionId(token);
     }
 
 
 
-    console.log(response,"---------")
     // 处理业务状态码
     if (response.status  !==200 ) {
       ElMessage.error(res.message || '请求失败')
@@ -98,93 +100,77 @@ request.interceptors.response.use(
   }
 )
 
-// 使用 fetch 处理事件流
+// 使用 EventSource 处理事件流
 export const fetchEventSource = async (url, options = {}) => {
-  const token = sessionStorage.getItem('token');
-  
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}${url}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        ...(token ? { 'session-id': token } : {}),
-        ...options.headers
-      },
-      body: JSON.stringify(options.data),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    // 构建基础URL和查询参数
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+    const queryParams = new URLSearchParams();
+    if (options.data) {
+      Object.entries(options.data).forEach(([key, value]) => {
+        queryParams.append(key, value);
+      });
     }
+    const fullUrl = `${baseUrl}${url}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+    // 检查浏览器是否支持 EventSource
+    if (typeof EventSource !== "undefined") {
+      return new Promise((resolve, reject) => {
+        const source = new EventSource(fullUrl);
 
-    while (true) {
-      const { done, value } = await reader.read();
-      
-      if (done) {
-        break;
-      }
+        // 连接打开时触发
+        source.onopen = (event) => {
+          console.log("连接打开");
+        };
 
-      // 解码新的数据块并添加到缓冲区
-      buffer += decoder.decode(value, { stream: true });
-      
-      // 按行分割缓冲区
-      const lines = buffer.split('\n');
-      
-      // 保留最后一个可能不完整的行
-      buffer = lines.pop() || '';
-
-      // 处理完整的行
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (!trimmedLine || trimmedLine === 'data: [DONE]' || trimmedLine === '[DONE]') {
-          continue;
-        }
-
-        try {
-          let parsedData;
-          if (trimmedLine.startsWith('data: ')) {
-            const jsonStr = trimmedLine.slice(6);
-            parsedData = JSON.parse(jsonStr);
-          } else {
-            parsedData = JSON.parse(trimmedLine);
-          }
+        // 接收消息时触发
+        source.onmessage = (event) => {
+          const data = event.data.trim();
           
+          // 跳过空行
+          if (!data) return;
+          
+          // 处理正常的数据
           if (options.onMessage) {
-            options.onMessage(parsedData);
+            options.onMessage(data);
           }
-        } catch (e) {
-          console.warn('解析数据时出错:',e, trimmedLine);
-        }
-      }
-    }
 
-    // 处理缓冲区中剩余的数据
-    if (buffer.trim()) {
-      try {
-        let parsedData;
-        if (buffer.startsWith('data: ')) {
-          const jsonStr = buffer.slice(6);
-          parsedData = JSON.parse(jsonStr);
-        } else {
-          parsedData = JSON.parse(buffer);
-        }
-        
-        if (options.onMessage) {
-          options.onMessage(parsedData);
-        }
-      } catch (e) {
-        console.warn('解析最后数据时出错:', buffer);
-      }
-    }
+          // 检查是否为结束标记
+          if (data.includes('@done')) {
+            // 使用更宽松的正则表达式来匹配文件名
+            const match = data.match(/@done(.*\.sql.*);/);
+            if (match && options.onFileName) {
+              const fileName = (match[1]).trim();
+              options.onFileName(fileName);
+            }
+            if (options.onDone) {
+              options.onDone();
+            }
+            source.close();
+            resolve();
+          }
+        };
 
+        // 错误处理
+        source.onerror = (event) => {
+          console.log("连接关闭");
+          source.close();
+          if (options.onError) {
+            options.onError(event);
+          }
+          reject(event);
+        };
+      });
+    } else {
+      // 浏览器不支持SSE
+      console.log("浏览器不支持SSE");
+      throw new Error("浏览器不支持SSE");
+    }
   } catch (error) {
     console.error('Stream error:', error);
+    if (options.onError) {
+      options.onError(error);
+    }
     throw error;
   }
 };

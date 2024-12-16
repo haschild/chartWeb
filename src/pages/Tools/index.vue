@@ -1,19 +1,6 @@
 <template>
   <div class="chat-container">
-    <!-- 欢迎界面  - 聊天界面-->
-    <div v-if="props.firstMenu !== 'tools'" class="chat-main" ref="chatMainRef">
-      <WelcomeSection v-if="!chatHistory.length" />
-
-      <div v-else class="chat-history">
-        <div
-          v-for="(message, index) in chatHistory"
-          :key="index"
-          class="message-wrapper"
-        >
-          <ChatMessage :message="message" />
-        </div>
-      </div>
-    </div>
+    
 
     <el-card class="tools-card" >
 
@@ -23,6 +10,7 @@
             style="width: 200px; margin-right: 10px"
             v-model="type"
             placeholder="请选择"
+            @change="handleTypeChange"
           >
             <el-option label="数据同步" value="COPY" />
             <el-option label="表(约束、索引)" value="TABLE" />
@@ -33,10 +21,10 @@
             <el-option label="存储过程" value="PROCEDURE" />
           </el-select>
 
-          <el-button type="primary">确定</el-button>
+          <el-button type="primary" @click="handleConvert">确定</el-button>
         </el-form-item>
 
-        <el-form-item label="fileName">
+        <el-form-item label="fileName" v-if="type !== 'COPY'">
           <el-input
             style="width: 200px; margin-right: 10px"
             v-model="fileName"
@@ -45,231 +33,64 @@
         </el-form-item>
       </el-form>
 
-      <pre class="tools-card-text">
-            1. 请输入表名
-            2. 请输入表名
-            3. 请输入表名
-            4. 请输入表名
-            5. 请输入表名
-            6. 请输入表名
-            7. 请输入表名
-            8. 请输入表名
-            9. 请输入表名
-            10. 请输入表名
-          </pre
-      >
+      <pre class="tools-card-text" v-text="outputText"></pre>
     </el-card>
 
-    <!-- 输入区域 -->
-    <el-card
-     
-      style="width: 800px; margin: 0 auto"
-    >
-      <!-- SQL专业版功能区域 -->
-      <div v-if="showSqlEditor" class="sql-pro-section">
-        <!-- SQL编辑器 -->
-        <div class="section-title">SQL编辑器</div>
-        <SqlEditor
-          v-model="sqlInput"
-          @change="handleSqlChange"
-          ref="sqlEditorRef"
-        />
-
-        <!-- 提示词区域 -->
-        <div class="section-title" style="margin-top: 10px">
-          常用提示词：
-          <el-button
-            type="primary"
-            v-for="prompt in prompts"
-            :key="prompt.id"
-            size="small"
-            plain
-            @click="applyPrompt(prompt)"
-            >{{ prompt.label }}</el-button
-          >
-        </div>
-      </div>
-
-      <!-- 用户输入区域 -->
-      <div class="chat-input-area">
-        <el-input
-          v-model="inputText"
-          type="textarea"
-          :rows="3"
-          :autosize="{ minRows: 3, maxRows: 6 }"
-          :placeholder="inputPlaceholder"
-          @keyup.enter.ctrl="sendMessage"
-          resize="none"
-        />
-          <div class="right-actions" title="发送">
-            <el-button
-              icon="Position"
-              circle
-              :loading="loading"
-              type="primary"
-              @click="sendMessage"
-            >
-            </el-button>
-          </div>
-      </div>
-    </el-card>
+   
   </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from "vue";
-import {
-  Picture,
-  Promotion,
-  Paperclip,
-  Microphone,
-  RefreshRight,
-} from "@element-plus/icons-vue";
-import WelcomeSection from "@/components/WelcomeSection.vue";
-import ChatMessage from "@/components/ChatMessage.vue";
-import SqlEditor from "@/components/SqlEditor.vue";
-import request from "@/utils/request";
-import { ElMessage } from "element-plus";
+import { ref } from 'vue';
+import { http } from '@/utils/request';
 
-// 接收父组件传递的参数 -- props
-const props = defineProps({
-  firstMenu: {
-    type: String,
-    default: "convertion",
-  },
-});
-const chatHistory = ref([]);
-const inputText = ref("");
-const loading = ref(false);
-const showSqlEditor = computed(() => props.firstMenu === "convertion");
-const sqlInput = ref("");
-const sqlEditorRef = ref(null);
-const chatMainRef = ref(null);
+const type = ref('TABLE');
+const fileName = ref('');
+const outputText = ref('');
 
-const inputPlaceholder = computed(() => {
-  return showSqlEditor.value
-    ? "请描述您的SQL转换需求..."
-    : "输入 @ 或 / 选择技能...";
-});
-
-const prompts = [
-  {
-    id: 5,
-    label: "继续优化",
-    text: "请继续优化SQL语句，使其更高效。",
-  },
-];
-
-const handleSqlChange = debounce((value) => {
-  sqlInput.value = value;
-}, 300);
-
-const applyPrompt = (prompt) => {
-  inputText.value = prompt.text;
+const handleTypeChange = (value) => {
+  type.value = value;
+  fileName.value = '';
+  outputText.value = '';
 };
 
-const sendMessage = async () => {
-  if ((!inputText.value.trim() && !sqlInput.value.trim()) || loading.value)
-    return;
-
-  loading.value = true;
-
-  const messageContent = inputText.value || sqlInput.value;
-
-  chatHistory.value.push({
-    type: "user",
-    content: messageContent,
-  });
-
-  chatHistory.value.push({
-    type: "ai",
-    loading: true,
-    content: {
-      text: "正在思考...",
-      sqltext: "",
-    },
-  });
-
-  await nextTick();
-  scrollToBottom();
-
+const handleConvert = async () => {
   try {
-    const response = await request.post("/api/sql/translate", {
-      data: {
-        sql: sqlInput.value,
-        prompt: inputText.value,
+    outputText.value = ''; // 清空之前的输出
+    
+    await http.stream('/stream/ora2pg/ddlconvert', {
+      type: type.value
+    }, {
+      onMessage: (data) => {
+        outputText.value += data + '\n';
       },
-      headers: {
-        "Content-Type": "application/json;charset=UTF-8",
-        Accept: "text/event-stream",
+      onFileName: (name) => {
+        fileName.value = name;
       },
+      onDone: () => {
+        console.log('转换完成');
+      },
+      onError: (error) => {
+        console.error('转换错误:', error);
+      }
     });
-
-    chatHistory.value.pop();
-    chatHistory.value.push({
-      type: "ai",
-      content: {
-        text: response.data.result,
-        sqltext: response.data.postgresqlSql,
-      },
-    });
-
-    await nextTick();
-    scrollToBottom();
   } catch (error) {
-    chatHistory.value.pop();
-    console.error("Error:", error);
-    ElMessage.error("发送失败，请重试");
-  } finally {
-    loading.value = false;
-    inputText.value = "";
+    console.error('请求错误:', error);
   }
 };
-
-const scrollToBottom = () => {
-  const chatMain = chatMainRef.value;
-  if (chatMain) {
-    chatMain.scrollTop = chatMain.scrollHeight;
-  }
-};
-
-// 添加 resetChat 函数定义
-const resetChat = () => {
-  chatHistory.value = [];
-  inputText.value = "";
-  sqlInput.value = "";
-  if (sqlEditorRef.value) {
-    sqlEditorRef.value.setValue("");
-  }
-  showSqlEditor.value = true;
-};
-
-// 暴��重置方法给父组件
-defineExpose({
-  resetChat,
-});
-
-// 添加防抖函数
-function debounce(fn, delay) {
-  let timer = null;
-  return function (...args) {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      fn.apply(this, args);
-    }, delay);
-  };
-}
 </script>
 
 <style lang="scss">
 .chat-container {
-  
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
 
   .tools-card {
     height: 100%;
+    margin: 0 auto;
+    min-width: 800px;
   }
 
   .tools-card .el-card__body {
@@ -288,11 +109,7 @@ function debounce(fn, delay) {
     }
   }
 
-  .chat-main {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-  }
+
 
   .section-title {
     font-size: 14px;

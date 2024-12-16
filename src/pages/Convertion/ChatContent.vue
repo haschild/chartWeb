@@ -1,5 +1,5 @@
 <template>
-  <div class="chat-container">
+  <div class="chat-container" @scroll="handleScroll">
     <!-- 欢迎界面  - 聊天界面-->
     <div class="chat-main" ref="chatMainRef">
       <WelcomeSection v-if="!chatHistory.length" />
@@ -15,13 +15,10 @@
       </div>
     </div>
 
-
     <!-- 输入区域 -->
-    <el-card
-      style="width: 800px; margin: 0 auto"
-    >
+    <div class="user-action-card">
       <!-- SQL专业版功能区域 -->
-      <div  class="sql-pro-section">
+      <div class="sql-pro-section">
         <!-- SQL编辑器 -->
         <div class="section-title">SQL编辑器</div>
         <SqlEditor
@@ -56,40 +53,56 @@
           @keyup.enter.ctrl="sendMessage"
           resize="none"
         />
-          <div class="right-actions" title="发送">
-            <el-button
-              icon="Position"
-              circle
-              :loading="loading"
-              type="primary"
-              @click="sendMessage"
-            >
-            </el-button>
-          </div>
+        <el-button
+          class="right-actions"
+          title="发送"
+          icon="Position"
+          circle
+          :loading="loading"
+          type="primary"
+          @click="sendMessage"
+        >
+        </el-button>
       </div>
-    </el-card>
+
+      <!-- 添加滚动到底部的按钮 -->
+      <el-button
+        icon="ArrowDown"
+        circle
+        v-show="showScrollBottom"
+        class="scroll-bottom-btn"
+        @click="scrollToBottom"
+        type="primary"
+      >
+      </el-button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from "vue";
+import { ref, computed, nextTick, watch } from "vue";
 
 import WelcomeSection from "@/components/WelcomeSection.vue";
 import ChatMessage from "@/components/ChatMessage.vue";
 import SqlEditor from "@/components/SqlEditor.vue";
-import {http} from "@/utils/request";
+import { http } from "@/utils/request";
 import { ElMessage } from "element-plus";
 import { useChatStore } from "@/store";
+import { debounce } from "lodash-es";
 
-const chatStore = useChatStore();
 const chatHistory = ref([]);
+// 判断是不是新的会话
+const newChatTag = ref(true);
+
+// 编辑区域
 const inputText = ref("");
-const loading = ref(false);   
+const loading = ref(false);
 const sqlInput = ref("");
 const sqlEditorRef = ref(null);
 const chatMainRef = ref(null);
 
-
+// 监听useChatStore的值变化
+let chatHistoryList = computed(() => useChatStore().chatHistory);
 
 const prompts = [
   {
@@ -108,7 +121,8 @@ const applyPrompt = (prompt) => {
 };
 
 const sendMessage = async () => {
-  if ((!inputText.value.trim() && !sqlInput.value.trim()) || loading.value) return;
+  if ((!inputText.value.trim() && !sqlInput.value.trim()) || loading.value)
+    return;
 
   loading.value = true;
 
@@ -130,32 +144,35 @@ const sendMessage = async () => {
   };
   chatHistory.value.push(aiMessage);
 
-  await nextTick();
-  scrollToBottom();
-
   try {
-    await http.stream("/api/sql/translate", {
+    const response = await http.post("/api/sql/translate", {
       sql: sqlInput.value,
       prompt: inputText.value,
-    }, {
-      onMessage: (data) => {
-        console.log('收到消息:', data);
-        if (data?.content) {
-          aiMessage.loading = false;
-          // 确保内容不为空
-          const text = data.content.text || aiMessage.content.text;
-          const sqltext = data.content.sqltext || aiMessage.content.sqltext;
-          
-          // 更新消息内容
-          aiMessage.content = {
-            text: text,
-            sqltext: sqltext,
-          };
-          
-          nextTick(() => scrollToBottom());
-        }
-      }
     });
+
+
+
+    chatHistory.value.pop();
+
+    chatHistory.value.push({
+    type: "ai",
+    content: {
+      text: response.code === 1 ? response.data.result : response.message,
+      sqltext: response.code === 1 ? response.data.postgresqlSql : "",
+    },
+  });
+
+    if (useChatStore().currentChat === "newChat" && newChatTag.value === true) {
+      useChatStore().addChatHistory({
+        title: (inputText.value || sqlInput.value).slice(0, 5),
+        data: chatHistory.value,
+      });
+      newChatTag.value = false;
+    } else {
+      useChatStore().setChatHistoryBySessionId(chatHistory.value);
+    }
+
+    nextTick(() => scrollToBottom());
   } catch (error) {
     console.error("Error:", error);
     if (aiMessage.loading) {
@@ -168,12 +185,17 @@ const sendMessage = async () => {
   }
 };
 
-const scrollToBottom = () => {
-  const chatMain = chatMainRef.value;
-  if (chatMain) {
-    chatMain.scrollTop = chatMain.scrollHeight;
+// 监听会话
+const currentChat = computed(() => useChatStore().currentChat);
+
+watch(currentChat, (newVal) => {
+  console.log(newVal, "watch currentChat");
+  if (newVal === "newChat") {
+    newChatTag.value = true;
+    useChatStore().setCurrentSessionId(null);
+    resetChat();
   }
-};
+});
 
 // 添加 resetChat 函数定义
 const resetChat = () => {
@@ -185,104 +207,117 @@ const resetChat = () => {
   }
 };
 
-// 暴露重置方法给父组件
-defineExpose({
-  resetChat,
-});
+// 添加新的 ref
+const showScrollBottom = ref(false);
+const scrollToBottom = () => {
+  const chatContainer = document.querySelector(".chat-container");
+  if (chatContainer) {
+    chatContainer.scrollTo({
+      top: chatContainer.scrollHeight,
+      behavior: "smooth",
+    });
+  }
+};
+// 添加滚动处理函数
+const handleScroll = (e) => {
+  const container = e.target;
+  const scrollDiff =
+    container.scrollHeight - container.scrollTop - container.clientHeight;
 
-// 添加防抖函数
-function debounce(fn, delay) {
-  let timer = null;
-  return function (...args) {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      fn.apply(this, args);
-    }, delay);
-  };
-}
+  // 如果距离底部超过 100px 就显示按钮
+  showScrollBottom.value = scrollDiff > 100;
+};
+
+// 添加 store 的引用
+const store = useChatStore();
+
+// 监听 currentSessionId
+watch(
+  () => store.currentSessionId,
+  (newSessionId) => {
+    if (newSessionId) {
+      // 找到对应的历史会话
+      const currentHistory = chatHistoryList.value.find(
+        (item) => item.sessionId === newSessionId
+      );
+      if (currentHistory) {
+        // 加载历史会话数据
+        chatHistory.value = currentHistory.data;
+        newChatTag.value = false;
+      }
+    } else {
+      // 新会话，重置数据
+      resetChat();
+      newChatTag.value = true;
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style lang="scss">
 .chat-container {
-  
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: auto;
+  position: relative; // 添加这行
 
-  .tools-card {
-    height: 100%;
+  // 对话区域
+  .chat-main {
+    width: 900px;
+    margin: 0 auto;
+    margin-bottom: 360px;
   }
 
-  .tools-card .el-card__body {
-    height: 100% ;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    .tools-card-text {
-      flex: 1;
-      color: white;
-      background-color: #333;
-      width: 100%;
-      margin: 0;
-      padding: 16px;
-      overflow-y: auto;
+  // 用户输入区域
+  .user-action-card {
+    box-shadow: var(--el-box-shadow-light);
+    padding: 20px;
+    width: 910px;
+    position: fixed;
+    bottom: 0;
+    left: 280px;
+    right: 0;
+    margin: 0 auto;
+    z-index: 2;
+    background-color: white;
+
+    .section-title {
+      font-size: 14px;
+      color: var(--el-text-color-secondary);
+      margin-bottom: 8px;
+    }
+
+    .chat-input-area {
+      position: relative;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      background-color: transparent;
+      border-radius: 8px;
+
+      .right-actions {
+        margin-left: 10px;
+        width: 40px;
+        height: 40px;
+        .el-icon {
+          font-size: 20px;
+        }
+      }
     }
   }
 
-  .chat-main {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-  }
+  .scroll-bottom-btn {
+    position: absolute;
+    right: -50px;
+    top: 10px;
+    width: 40px;
+    height: 40px;
 
-  .section-title {
-    font-size: 14px;
-    color: var(--el-text-color-secondary);
-    margin-bottom: 8px;
-  }
-
-  .chat-input-area {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    background-color: transparent;
-    border-radius: 8px;
-  }
-
-
-  .input-wrapper {
-    flex: 1;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-    padding: 10px 16px;
-  }
-
-  :deep(.el-textarea__inner) {
-    border: none;
-    padding: 8px 0;
-    min-height: 24px ;
-    resize: none;
-    box-shadow: none;
-    font-size: 14px;
-  }
-
-  :deep(.el-textarea__inner:focus) {
-    box-shadow: none;
-  }
-
-  .right-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-left: 10px;
-  }
-
-  :deep(.el-button--primary) {
-    padding: 8px 16px;
-    height: 32px;
-    border-radius: 6px;
+    .el-icon {
+      font-size: 20px;
+    }
   }
 }
 </style>
