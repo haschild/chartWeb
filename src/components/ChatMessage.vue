@@ -16,7 +16,7 @@
             <span></span>
           </div>
           <template v-else>
-            <div class="response-text" v-html="renderMarkdown(message.content.text)"></div>
+            <div class="response-text" v-html="renderMarkdown(message.content.text ||'暂无数据返回')"></div>
             <div v-if="message.content.sqltext" class="sql-block">
               <div class="sql-header">
                 <span class="sql-icon">
@@ -128,6 +128,7 @@ const copySql = async (sql) => {
   padding: 1rem;
   color: #fff;
   font-family: monospace;
+  overflow: auto;
 }
 
 :deep(.hljs-keyword) {

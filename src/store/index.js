@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
 const pinia = createPinia();
-pinia.use(piniaPluginPersistedstate)
+// pinia.use(piniaPluginPersistedstate)
 
 export const useChatStore = defineStore("chat", {
   state: () => ({

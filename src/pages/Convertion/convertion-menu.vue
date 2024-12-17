@@ -55,6 +55,8 @@ import { Delete } from '@element-plus/icons-vue'
 const chatStore = useChatStore()
 
 const activeIndex = ref("newChat")
+chatStore.setCurrentChat("newChat");
+
 
 const chatHistoryList = computed(() => useChatStore().chatHistory);
 

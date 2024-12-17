@@ -16,20 +16,21 @@
             <el-option label="表(约束、索引)" value="TABLE" />
             <el-option label="视图" value="VIEW" />
             <el-option label="INSERT语句" value="INSERT" />
-            <el-option label="序号" value="SEQUENCE" />
+            <el-option label="序列" value="SEQUENCE" />
             <el-option label="函数" value="FUNCTION" />
             <el-option label="存储过程" value="PROCEDURE" />
           </el-select>
 
-          <el-button type="primary" @click="handleConvert">确定</el-button>
+          <el-button 
+            type="primary" 
+            @click="handleConvert"
+            :loading="isConverting"
+          >确定</el-button>
         </el-form-item>
 
         <el-form-item label="fileName" v-if="type !== 'COPY'">
-          <el-input
-            style="width: 200px; margin-right: 10px"
-            v-model="fileName"
-          ></el-input>
-          <el-button type="primary">下载</el-button>
+          <el-input v-model="fileName" style="width: 200px; margin-right: 10px" ></el-input>
+          <el-button type="primary" @click="downloadFile">下载</el-button>
         </el-form-item>
       </el-form>
 
@@ -47,6 +48,17 @@ import { http } from '@/utils/request';
 const type = ref('TABLE');
 const fileName = ref('');
 const outputText = ref('');
+const isConverting = ref(false);
+
+const downloadFile = () => {
+  const downloadUrl = `/sqlai/api/download?fileName=${encodeURIComponent(fileName.value)}`;
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = fileName.value; // 指定下载文件名
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
 
 const handleTypeChange = (value) => {
   type.value = value;
@@ -56,10 +68,11 @@ const handleTypeChange = (value) => {
 
 const handleConvert = async () => {
   try {
+    isConverting.value = true;
     outputText.value = ''; // 清空之前的输出
     
     await http.stream('/stream/ora2pg/ddlconvert', {
-      type: type.value
+      ddlType: type.value
     }, {
       onMessage: (data) => {
         outputText.value += data + '\n';
@@ -69,13 +82,16 @@ const handleConvert = async () => {
       },
       onDone: () => {
         console.log('转换完成');
+        isConverting.value = false;
       },
       onError: (error) => {
         console.error('转换错误:', error);
+        isConverting.value = false;
       }
     });
   } catch (error) {
     console.error('请求错误:', error);
+    isConverting.value = false;
   }
 };
 </script>
@@ -90,7 +106,8 @@ const handleConvert = async () => {
   .tools-card {
     height: 100%;
     margin: 0 auto;
-    min-width: 800px;
+    width: 1200px;
+    margin-bottom: 30px;
   }
 
   .tools-card .el-card__body {

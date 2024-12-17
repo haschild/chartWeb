@@ -39,7 +39,7 @@ app.get('/sqlai/stream/ora2pg/ddlconvert', (req, res) => {
 
     res.write('data:[2014-16-12 15:22:22] DEBUG: Sending COPY bulk output directly to PostgreSQ\n\n');
     // 发送结束标记
-    res.write('data:@done文件名.sql;命令执行完毕，退出码：0');
+    res.write('data:@done文件名.sql;命令执行完毕，退出码：0\n\n');
     res.end();
 });
 

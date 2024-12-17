@@ -3,7 +3,7 @@
     <el-header><LayoutHeader ></LayoutHeader></el-header>
     <el-container style="height: calc(100% - 60px)">
       <Convertion v-if="firstMenu === 'convertion'"></Convertion>
-      <!-- <Text v-else-if="firstMenu === 'text'"></Text> -->
+      <Text v-else-if="firstMenu === 'text'"></Text>
      <Tools v-else-if="firstMenu === 'tools'"></Tools> 
     </el-container>
     <el-footer>Footer</el-footer>
@@ -14,7 +14,7 @@
 import { computed, ref } from "vue";
 
 import LayoutHeader from "@/components/layout-header.vue";
-// import Text from "@/pages/Text/index.vue";
+import Text from "@/pages/Text/index.vue";
 import Tools from "@/pages/Tools/index.vue";
 import Convertion from "@/pages/Convertion/index.vue";
 const chatContentRef = ref(null);
@@ -37,7 +37,6 @@ const startNewChat = () => {
   height: 30px;
   position:fixed;
   bottom:0;
-  width: 100%;
   padding-left:300px;
 }
 </style>

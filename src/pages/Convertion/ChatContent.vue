@@ -106,18 +106,31 @@ let chatHistoryList = computed(() => useChatStore().chatHistory);
 
 const prompts = [
   {
-    id: 5,
+    id: 1,
     label: "继续优化",
     text: "请继续优化SQL语句，使其更高效。",
   },
+  {
+    id: 2,
+    label: "执行计划",
+    text:"",
+  },
 ];
+
+const currentPrompt = ref(null);
 
 const handleSqlChange = debounce((value) => {
   sqlInput.value = value;
 }, 300);
 
 const applyPrompt = (prompt) => {
+  currentPrompt.value = prompt;
   inputText.value = prompt.text;
+
+  if(prompt.id === 2){
+    sendMessage();
+  }
+  
 };
 
 const sendMessage = async () => {
@@ -145,7 +158,12 @@ const sendMessage = async () => {
   chatHistory.value.push(aiMessage);
 
   try {
-    const response = await http.post("/api/sql/translate", {
+    let url = "/api/sql/translate";
+    if(currentPrompt.value?.id === 2){
+      url = "/api/queryplan/explain";
+      currentPrompt.value=null;
+    }
+    const response = await http.post(url, {
       sql: sqlInput.value,
       prompt: inputText.value,
     });
